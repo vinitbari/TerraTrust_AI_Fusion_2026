@@ -144,7 +144,7 @@ export const Topbar: React.FC<TopbarProps> = ({
       {/* Center Search Shortcut (Clean Pill-Shaped with Subtle Border) */}
       <div className="hidden lg:flex items-center max-w-md w-full mx-4">
         <Link
-          to="/officer/borrowers"
+          to="/officer/officer/borrowers"
           className="w-full flex items-center justify-between px-4 py-2 rounded-full bg-slate-50/80 hover:bg-white border border-slate-200/90 hover:border-emerald-500/50 hover:shadow-sm text-xs text-slate-500 hover:text-slate-800 transition-all duration-200 group"
         >
           <div className="flex items-center gap-2.5">
@@ -210,7 +210,7 @@ export const Topbar: React.FC<TopbarProps> = ({
 
               <div className="pt-1 text-center border-t border-slate-100">
                 <Link
-                  to="/officer/crop-cycles/cycle-301/climate"
+                  to="/officer/officer/crop-cycles/cycle-301/climate"
                   onClick={() => setShowNotificationDropdown(false)}
                   className="text-[11px] font-bold text-primary-800 hover:underline inline-flex items-center gap-1"
                 >
