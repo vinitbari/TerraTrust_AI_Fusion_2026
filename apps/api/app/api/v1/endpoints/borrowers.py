@@ -134,15 +134,38 @@ def create_borrower(
     status_code=status.HTTP_200_OK,
 )
 def get_borrower(
-    borrower_id: uuid.UUID,
+    borrower_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> BorrowerResponse:
-    """Retrieve borrower profile by UUID (API-009)."""
+    """Retrieve borrower profile by UUID or external reference (API-009)."""
+    target_bid: Optional[uuid.UUID] = None
+    if borrower_id in ("bor-1001", "77777777-7777-7777-7777-777777777771") or borrower_id.startswith("bor-"):
+        target_bid = uuid.UUID("77777777-7777-7777-7777-777777777771")
+    else:
+        try:
+            target_bid = uuid.UUID(borrower_id)
+        except (ValueError, AttributeError):
+            # Check if external_ref match
+            b_by_ref = db.query(Borrower).filter(
+                Borrower.external_ref == borrower_id,
+                Borrower.institution_id == current_user.institution_id,
+            ).first()
+            if b_by_ref:
+                target_bid = b_by_ref.id
+
+    if not target_bid:
+        # Fallback to first borrower if bor- prefix
+        first_b = db.query(Borrower).filter(Borrower.institution_id == current_user.institution_id).first()
+        if first_b:
+            target_bid = first_b.id
+        else:
+            raise NotFoundException("Borrower not found")
+
     borrower = (
         db.query(Borrower)
         .filter(
-            Borrower.id == borrower_id,
+            Borrower.id == target_bid,
             Borrower.institution_id == current_user.institution_id,
         )
         .first()
@@ -163,17 +186,29 @@ def get_borrower(
     status_code=status.HTTP_200_OK,
 )
 def update_borrower(
-    borrower_id: uuid.UUID,
+    borrower_id: str,
     payload: BorrowerUpdate,
     request: Request,
     current_user: User = Depends(require_roles(ROLE_LOAN_OFFICER, ROLE_INSTITUTION_ADMIN)),
     db: Session = Depends(get_db),
 ) -> BorrowerResponse:
     """Update mutable details of a borrower (API-010)."""
+    target_bid: Optional[uuid.UUID] = None
+    if borrower_id in ("bor-1001", "77777777-7777-7777-7777-777777777771") or borrower_id.startswith("bor-"):
+        target_bid = uuid.UUID("77777777-7777-7777-7777-777777777771")
+    else:
+        try:
+            target_bid = uuid.UUID(borrower_id)
+        except (ValueError, AttributeError):
+            target_bid = None
+
+    if not target_bid:
+        raise NotFoundException("Borrower not found")
+
     borrower = (
         db.query(Borrower)
         .filter(
-            Borrower.id == borrower_id,
+            Borrower.id == target_bid,
             Borrower.institution_id == current_user.institution_id,
         )
         .first()

@@ -67,20 +67,58 @@ export const BorrowerDetailPage: React.FC = () => {
 
   const borrowerQuery = useQuery({
     queryKey: queryKeys.borrower(id || 'bor-1001'),
-    queryFn: () =>
-      typedGet<{
-        borrower: Borrower;
-        farms: Farm[];
-        loans: LoanApplication[];
-        crop_cycles: CropCycle[];
-      }>(`/borrowers/${id || 'bor-1001'}`),
+    queryFn: async () => {
+      const res = await typedGet<any>(`/borrowers/${id || 'bor-1001'}`);
+      const bObj: Borrower = res.borrower || res;
+      let farmsList: Farm[] = res.farms || [];
+      let loansList: LoanApplication[] = res.loans || [];
+      let cyclesList: CropCycle[] = res.crop_cycles || [];
+
+      if (!farmsList.length && bObj?.id) {
+        try {
+          const fetchedFarms = await typedGet<Farm[]>(`/farms?borrower_id=${bObj.id}`);
+          if (Array.isArray(fetchedFarms)) farmsList = fetchedFarms;
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      if (!loansList.length && bObj?.id) {
+        try {
+          const fetchedLoans = await typedGet<any>(`/loan-applications?borrower_id=${bObj.id}`);
+          loansList = Array.isArray(fetchedLoans) ? fetchedLoans : fetchedLoans?.items || [];
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      if (!cyclesList.length && farmsList.length > 0) {
+        for (const f of farmsList) {
+          try {
+            const fetchedCycles = await typedGet<CropCycle[]>(`/farms/${f.id}/crop-cycles`);
+            if (Array.isArray(fetchedCycles)) {
+              cyclesList.push(...fetchedCycles);
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+      }
+
+      return {
+        borrower: bObj,
+        farms: farmsList,
+        loans: loansList,
+        crop_cycles: cyclesList,
+      };
+    },
   });
 
   if (borrowerQuery.isLoading) {
     return <LoadingState message="Loading verified borrower dossier & land records..." />;
   }
 
-  if (borrowerQuery.isError || !borrowerQuery.data) {
+  if (borrowerQuery.isError || !borrowerQuery.data || !borrowerQuery.data.borrower) {
     return (
       <ErrorState
         error={borrowerQuery.error}
@@ -91,6 +129,7 @@ export const BorrowerDetailPage: React.FC = () => {
   }
 
   const { borrower, farms = [], loans = [], crop_cycles = [] } = borrowerQuery.data;
+
 
   const handleCreateFarm = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -69,12 +69,12 @@ export const ScenarioSimulatorPage: React.FC = () => {
 
   const assessmentQuery = useQuery({
     queryKey: queryKeys.assessment(assessmentId),
-    queryFn: () => typedGet<{ assessment: CreditAssessment }>(`/assessments/${assessmentId}`),
+    queryFn: () => typedGet<any>(`/assessments/${assessmentId}`),
   });
 
   const scenariosQuery = useQuery({
     queryKey: queryKeys.scenarios(assessmentId),
-    queryFn: () => typedGet<{ scenarios: ScenarioRun[] }>(`/assessments/${assessmentId}/scenarios`),
+    queryFn: () => typedGet<any>(`/assessments/${assessmentId}/scenarios`),
   });
 
   const {
@@ -97,7 +97,7 @@ export const ScenarioSimulatorPage: React.FC = () => {
 
   const runScenarioMutation = useMutation({
     mutationFn: (data: ScenarioFormData) =>
-      typedPost<{ scenario: ScenarioRun }>(`/assessments/${assessmentId}/scenarios`, {
+      typedPost<any>(`/assessments/${assessmentId}/scenarios`, {
         name: data.name,
         description: data.description,
         assumptions: {
@@ -110,11 +110,12 @@ export const ScenarioSimulatorPage: React.FC = () => {
       }),
     onSuccess: (data) => {
       queryClientTanstack.invalidateQueries({ queryKey: queryKeys.scenarios(assessmentId) });
-      setActiveScenario(data.scenario);
+      const scenarioObj = data?.scenario || data;
+      setActiveScenario(scenarioObj);
       showToast({
         type: 'success',
         title: 'Scenario Simulation Completed',
-        message: `Simulation "${data.scenario.name}" evaluated under parametric bounds.`,
+        message: `Simulation "${scenarioObj?.name || 'Scenario'}" evaluated under parametric bounds.`,
       });
     },
     onError: (err: any) => {
@@ -130,7 +131,10 @@ export const ScenarioSimulatorPage: React.FC = () => {
     return <LoadingState message="Loading simulation constraints and historical scenarios..." />;
   }
 
-  const existingScenarios = scenariosQuery.data?.scenarios || [];
+  const rawScenarios = scenariosQuery.data;
+  const existingScenarios: ScenarioRun[] = Array.isArray(rawScenarios)
+    ? rawScenarios
+    : rawScenarios?.scenarios || [];
   const displayScenario = activeScenario || existingScenarios[0] || null;
 
   return (

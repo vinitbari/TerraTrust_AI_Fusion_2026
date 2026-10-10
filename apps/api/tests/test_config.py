@@ -7,7 +7,7 @@ from app.config import Settings
 
 def test_default_settings():
     """Verify default settings configuration."""
-    settings = Settings()
+    settings = Settings(_env_file=None)
     assert settings.APP_NAME == "FIN-03 Agricultural Credit Risk API"
     assert settings.APP_PORT == 8000
     assert settings.REQUEST_TIMEOUT_SECONDS == 10

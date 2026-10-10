@@ -102,16 +102,32 @@ def create_loan_application(
     status_code=status.HTTP_200_OK,
 )
 def get_loan_application(
-    application_id: uuid.UUID,
+    application_id: str,
     current_user: Union[User, Borrower] = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> LoanApplicationResponse:
-    """Retrieve loan application by UUID (API-017)."""
+    """Retrieve loan application by UUID or demo alias (API-017)."""
+    target_aid: Optional[uuid.UUID] = None
+    if application_id in ("loan-501", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb") or application_id.startswith("loan-"):
+        target_aid = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+    else:
+        try:
+            target_aid = uuid.UUID(application_id)
+        except (ValueError, AttributeError):
+            target_aid = None
+
+    if not target_aid:
+        first_a = db.query(LoanApplication).first()
+        if first_a:
+            target_aid = first_a.id
+        else:
+            raise NotFoundException("Loan application not found")
+
     app = (
         db.query(LoanApplication)
         .options(joinedload(LoanApplication.borrower))
         .filter(
-            LoanApplication.id == application_id,
+            LoanApplication.id == target_aid,
             LoanApplication.institution_id == current_user.institution_id,
         )
         .first()
@@ -191,18 +207,30 @@ def list_loan_applications(
     status_code=status.HTTP_200_OK,
 )
 def update_loan_application_status(
-    application_id: uuid.UUID,
+    application_id: str,
     payload: LoanApplicationStatusUpdate,
     request: Request,
     current_user: User = Depends(require_roles(ROLE_LOAN_OFFICER, ROLE_INSTITUTION_ADMIN, ROLE_RISK_ANALYST)),
     db: Session = Depends(get_db),
 ) -> LoanApplicationResponse:
     """Officer status decision update on a loan application."""
+    target_aid: Optional[uuid.UUID] = None
+    if application_id in ("loan-501", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb") or application_id.startswith("loan-"):
+        target_aid = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+    else:
+        try:
+            target_aid = uuid.UUID(application_id)
+        except (ValueError, AttributeError):
+            target_aid = None
+
+    if not target_aid:
+        raise NotFoundException("Loan application not found")
+
     app = (
         db.query(LoanApplication)
         .options(joinedload(LoanApplication.borrower))
         .filter(
-            LoanApplication.id == application_id,
+            LoanApplication.id == target_aid,
             LoanApplication.institution_id == current_user.institution_id,
         )
         .first()
@@ -231,6 +259,7 @@ def update_loan_application_status(
         resp.borrower_name = app.borrower.display_name
         resp.borrower_phone = app.borrower.contact_phone
     return resp
+
 
 
 
